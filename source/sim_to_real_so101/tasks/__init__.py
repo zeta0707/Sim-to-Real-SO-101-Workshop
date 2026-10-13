@@ -95,3 +95,7 @@ gym.register(
     },
 )
 
+# OMX-F environments (Lerobot-Omx-Teleop-*). import_packages() above only imports sub-*packages*,
+# not plain modules, so omx_register has to be imported explicitly.
+from . import omx_register  # noqa: E402,F401
+

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 12-10-26 /1
+
+## Added
+- ROBOTIS OMX-F / OMX-L port (omx_* files): environments `Lerobot-Omx-Teleop-*` incl. `Cube-To-Cup`, leader teleop + LeRobotDataset recording, leader probe script
+- `utils/omx_recorder.py`: CPU frame buffer (the original recorder preallocated 2 min of video on the GPU)
+- entrypoint installs `dynamixel-sdk` (OMX-L leader) when missing
+- README section for the OMX port
+
+## Changed
+- docker/sim/Dockerfile: install ffmpeg from apt instead of the BtbN "latest" build (reproducible; recording/decoding verified)
+- docker/real/Dockerfile.blackwell: pin torch 2.13.0 + cu130 and install a prebuilt flash-attn wheel (third-party release, mjun0812/flash-attention-prebuild-wheels) instead of building it. Not verified by the OMX port author beyond the image build
+
 ## 29-11-25 /1
 
 ## Changed

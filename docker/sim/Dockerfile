@@ -41,11 +41,10 @@ RUN $PYTHON -m pip install -c /tmp/constraints.txt \
     "deepdiff>=7.0.1,<9.0.0" \
     "feetech-servo-sdk>=1.0.0,<2.0.0"
 
-RUN curl --proto "=https" --tlsv1.2 -sSf -L -o /tmp/ffmpeg.tar.xz \
-    https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-lgpl-shared-7.1.tar.xz && \
-    tar -xf /tmp/ffmpeg.tar.xz -C /usr/local --strip-components=1 && \
-    ldconfig && \
-    rm /tmp/ffmpeg.tar.xz
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
+    libavdevice-dev libavfilter-dev libswscale-dev libswresample-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-6 libxcursor1 libxrandr2 libxi6 libxinerama1 \
