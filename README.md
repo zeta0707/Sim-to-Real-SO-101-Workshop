@@ -1,20 +1,16 @@
-# Train an SO-101 Robot From Sim-to-Real With NVIDIA Isaac
+# Train an OMX Robot From Sim-to-Real With NVIDIA Isaac
 
-![SO-101 Vial to Rack Task](images/so101_banner.png)
+![OMX Vial to Rack Task](images/omx_banner.png)
 
-Welcome to this workshop on sim-to-real transfer for the SO-101 robot!
+Welcome to this workshop on sim-to-real transfer for the OMX robot!
 
-This repository contains the assets and code to accompany this [learning content](https://docs.nvidia.com/learning/physical-ai/sim-to-real-so-101/latest/index.html).
-
-The rest of this README will help you setup the environment and ensure everything is installed correctly.
-
-You can also use this repo as a basis for trying out your own tasks.
 
 ## ROBOTIS OMX-F 포팅 (이 포크의 추가 내용)
 
-이 포크는 SO-101 워크숍 환경을 **ROBOTIS OMX-F 팔로워 + OMX-L 리더**로 옮긴 것이다. 기존 SO-101 파일은 `source/sim_to_real_so101/tasks/__init__.py` 끝에 `from . import omx_register` 한 줄을 추가한 것 외에는 수정하지 않았고, OMX 관련 파일은 모두 `omx_` 접두사로 추가했다. 파일 목록, 데이터 규약, 시뮬레이션에서 확인된 사항은 [OMX_PORT.md](OMX_PORT.md)에 있다.
-
-로봇 에셋(`omx_f`)은 가짜연구소(Pseudo Lab)의 [NVIDIA-RFM-Lab](https://github.com/Pseudo-Lab/NVIDIA-RFM-Lab)(MIT)에서 가져왔다. 자세한 출처는 `THIRD_PARTY_NOTICES`를 본다.
+이 포크는 SO-101 워크숍 환경을 **ROBOTIS OMX-F 팔로워 + OMX-L 리더**로 옮긴 것이다.   
+기존 SO-101 파일은 `source/sim_to_real_so101/tasks/__init__.py` 끝에 `from . import omx_register` 한 줄을 추가한 것 외에는 수정하지 않았고  
+OMX 관련 파일은 모두 `omx_` 접두사로 추가했다. 파일 목록, 데이터 규약, 시뮬레이션에서 확인된 사항은 [OMX_PORT.md](OMX_PORT.md)에 있다.  
+로봇 에셋(`omx_f`)은 가짜연구소(Pseudo Lab)의 [NVIDIA-RFM-Lab](https://github.com/Pseudo-Lab/NVIDIA-RFM-Lab)(MIT)에서 가져왔다.  
 
 ### 동작 확인 상태
 
@@ -144,6 +140,19 @@ Cube-To-Cup 의 장면 구성:
 | Ctrl-C 로 안 꺼짐 | 다른 터미널에서 `docker kill teleop` |
 | `Failed to initialize dataset. folder already exists` | `datasets/...` 폴더가 불완전하게 남은 것. 비어 있으면 지우고 다시 실행 |
 | 두 `sim_to_real_so101` 패키지 충돌 | NVIDIA-RFM-Lab 의 같은 이름 패키지를 PYTHONPATH 에 올리지 않는다 |
+
+# Fork한 원본 README
+# Train an SO-101 Robot From Sim-to-Real With NVIDIA Isaac
+
+![SO-101 Vial to Rack Task](images/so101_banner.png)
+
+Welcome to this workshop on sim-to-real transfer for the SO-101 robot!
+
+This repository contains the assets and code to accompany this [learning content](https://docs.nvidia.com/learning/physical-ai/sim-to-real-so-101/latest/index.html).
+
+The rest of this README will help you setup the environment and ensure everything is installed correctly.
+
+You can also use this repo as a basis for trying out your own tasks.
 
 ## Requirements
 
