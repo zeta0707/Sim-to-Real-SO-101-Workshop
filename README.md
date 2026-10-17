@@ -22,9 +22,11 @@ You can also use this repo as a basis for trying out your own tasks.
 |---|---|
 | OMX-F 환경 등록·구동 (`list_envs`) | 확인 (RTX 5060 Laptop 8 GB, Isaac Sim 5.1 / Isaac Lab 2.3.2) |
 | OMX-L 리더 → 시뮬레이션 텔레옵 (`Cube-To-Cup`) | 확인 (큐브를 집어 컵에 넣음) |
-| LeRobotDataset 녹화 (영상 2대 + state/action) | 확인 (3개 에피소드 저장, 재로딩·디코딩 확인) |
-| `-Eval` 환경의 성공 판정(`cube_in_cup`) | 미확인 |
-| GR00T 학습 / `omx_lerobot_eval.py` 평가 | 미확인 |
+| LeRobotDataset 녹화 (영상 2대 + state/action) | 확인 (20개 에피소드, 재로딩·디코딩 확인) |
+| `-Eval` 환경의 성공 판정(`cube_in_cup`) | 확인 |
+| ACT 학습 (20 에피소드, 30k 스텝) / 시뮬레이터 평가 | 확인 (평가 3/3 성공, 표본이 작음) |
+| GR00T 학습 / `omx_lerobot_eval.py` 평가 | 미확인 (파인튜닝에 VRAM 40 GB 이상 권장) |
+| 강화학습 환경 `Lerobot-Omx-Cube-To-Cup-RL` (PPO) | 학습/평가 완료: 정책 단독 성공률 96/100 (시뮬레이션). 아래 "강화학습" 참고 |
 | 실물 OMX-F 팔로워 배포 | 미구현 (follower 모드는 GR00T 원격 정책 경로만 지원) |
 | `Vials-To-Rack` 환경 | 환경은 뜨지만 자동 파지(진단 스크립트)는 불안정. 바이알 3D 출력 후 재조정 예정 |
 
@@ -161,6 +163,50 @@ Cube-To-Cup 의 장면 구성:
 - 컵: 위가 열린 정사각 컵(내경 8 cm, 높이 6 cm, 벽 6 mm), (0.17, 0.10) m. 실물 컵 크기는 아직 반영하지 않았다.
 - 성공 판정: 큐브 중심이 컵 중심 기준 xy ±3.5 cm 이고 높이가 0.04~0.075 m 일 때.
 - 카메라: ego(손목)와 external_D455(탑뷰), 각 640x480.
+
+### 강화학습 (PPO)
+
+모방학습과 같은 큐브/컵/매트/마찰 물리를 쓰되, 카메라 없이 **상태 기반 관찰**(관절, ee, 큐브, 컵 상대 위치)만 쓰는 환경이다. headless 로 수백 개를 병렬로 돌린다.
+
+| 항목 | 내용 |
+|---|---|
+| 환경 | `Lerobot-Omx-Cube-To-Cup-RL` (512 env, 정책 30 Hz, 에피소드 12 s) |
+| 액션 | 6차원 델타 관절 목표 (`[-1,1]` -> joint1~5 는 스텝당 최대 0.05 rad, gripper 0.08 rad). `mdp/omx_rl.py` |
+| 보상 | 도달(reach, reach_fine) + 들기 + 들린 채 컵 위로 운반(carry, carry_fine) + 컵 위에서 그리퍼 열기(release) + 성공(1000) - 낙하 - 액션 변화/관절 속도 |
+| 종료 | 성공(`cube_in_cup`, 평가와 같은 판정) / 큐브 낙하·이탈 / 시간 초과 |
+| 알고리즘 | RSL-RL PPO, 설정은 `tasks/omx_rl_agent_cfg.py` |
+| 화면 | 바닥은 보기용 연녹색 판(충돌 없음), 돔 라이트 |
+
+결과 (시뮬레이션, 100 에피소드):
+
+| 정책 | 성공률 |
+|---|---|
+| PPO 학습 결과 (r6, model_2100) 정책만 | 5/100 -- 큐브를 컵 위까지 옮기지만 그리퍼를 열지 않고 떨기만 한다 |
+| 위 정책 + 놓기 규칙(`--auto_release`) | 99/100 |
+| 놓기를 정책에 증류한 `distill_release.pt` 정책만 | 96/100 |
+
+PPO 가 놓기를 못 배운 이유는 정책 평균 출력이 "닫기" 쪽으로 굳어 가우시안 탐색으로는 열기 동작이 거의 나오지 않아서다.
+그래서 규칙(컵 xy 3 cm 안, 높이 0.075 m 이상에서 15 스텝 머물면 열기)을 정답으로 삼아 actor 를 지도학습(DAgger 방식)으로 고쳤다.
+(참고: 잡고 있는 동안 큐브가 그리퍼 사이에서 스텝마다 ~1.4 cm 진동하므로 큐브 속도로 "멈춤"을 판정할 수 없다.)
+
+```bash
+# 1) 환경 점검: 차원, 액션 방향, 처짐, 랜덤 액션의 보상/종료
+python source/sim_to_real_so101/scripts/omx_rl_check.py --headless --num_envs 8
+# 2) 짧게 돌려 보기 -> 문제 없으면 본 학습 (이어서: --resume <model.pt> --run_name rN)
+python source/sim_to_real_so101/scripts/omx_rl_train.py --headless --num_envs 64 --max_iterations 20
+python source/sim_to_real_so101/scripts/omx_rl_train.py --headless --num_envs 512
+# 3) 학습 곡선 (호스트 또는 컨테이너에서)
+tensorboard --logdir outputs/rl
+# 4) 놓기 증류: 규칙을 정책에 가르친다 (결과 체크포인트: --out)
+python source/sim_to_real_so101/scripts/omx_rl_distill_release.py --headless \
+  --checkpoint outputs/rl/omx_cube_to_cup/<run>/model_2100.pt --out outputs/rl/omx_cube_to_cup/distill_release.pt
+# 5) 평가: 성공률 (성공 = cube_in_cup 종료). --headless 를 빼면 화면으로 본다
+python source/sim_to_real_so101/scripts/omx_rl_play.py --headless --num_envs 16 --num_episodes 100 \
+  --checkpoint outputs/rl/omx_cube_to_cup/distill_release.pt
+#    --auto_release : 놓기 규칙을 얹어서 평가   --probe : env 0 의 상태를 10 스텝마다 출력   --force_open_at N : N 스텝부터 그리퍼 강제 열기
+```
+
+다음 단계 후보: PPO 로 증류한 정책을 더 다듬기, 손목이 아래를 향하는 자세 보상, 실제 OMX-F 이식.
 
 ### 문제 해결
 

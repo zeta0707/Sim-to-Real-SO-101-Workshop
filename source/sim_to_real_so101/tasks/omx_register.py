@@ -15,6 +15,8 @@ _OMX_ENVS = {
     "Lerobot-Omx-Teleop-Vials-To-Rack-DR-Eval": "omx_vials_to_rack_env_cfg:OmxVialsToRackEvalDREnvCfg",
     "Lerobot-Omx-Teleop-Cube-To-Cup": "omx_cube_to_cup_env_cfg:OmxCubeToCupEnvCfg",
     "Lerobot-Omx-Teleop-Cube-To-Cup-Eval": "omx_cube_to_cup_env_cfg:OmxCubeToCupEvalEnvCfg",
+    # 강화학습용 (상태 기반 관찰, 카메라 없음). scripts/omx_rl_train.py 로 학습한다.
+    "Lerobot-Omx-Cube-To-Cup-RL": "omx_cube_to_cup_rl_env_cfg:OmxCubeToCupRLEnvCfg",
 }
 
 _PKG = __name__.rsplit(".", 1)[0]  # sim_to_real_so101.tasks
