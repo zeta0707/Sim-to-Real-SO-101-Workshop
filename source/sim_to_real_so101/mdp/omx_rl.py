@@ -9,6 +9,7 @@ import torch
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
+from isaaclab.utils.math import quat_apply
 
 from sim_to_real_so101.mdp.omx_actions import OmxJointPositionAction, OmxJointPositionActionCfg
 
@@ -90,6 +91,20 @@ def cube_minus_cup_xy(
 # ---------------------------------------------------------------------------
 # 보상
 # ---------------------------------------------------------------------------
+def ee_pointing_down(
+    env: ManagerBasedRLEnv,
+    ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
+) -> torch.Tensor:
+    """그리퍼가 가리키는 방향(ee 프레임 +x, link5 에서 핑거 쪽)이 아래를 향할수록 1 에 가까운 값.
+    수평이면 0, 정확히 아래면 1, 위를 향하면 0."""
+    ee = env.scene[ee_frame_cfg.name]
+    q = ee.data.target_quat_w[:, 0, :]
+    x_axis = torch.zeros_like(ee.data.target_pos_w[:, 0, :])
+    x_axis[:, 0] = 1.0
+    az = quat_apply(q, x_axis)[:, 2]
+    return torch.clamp(-az, 0.0, 1.0)
+
+
 def reach_cube(
     env: ManagerBasedRLEnv,
     std: float,

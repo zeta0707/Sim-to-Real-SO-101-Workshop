@@ -25,6 +25,7 @@ from sim_to_real_so101.mdp.omx_rl import (
     cube_out_of_bounds,
     cube_pos_env,
     cube_quat_env,
+    ee_pointing_down,
     ee_pos_env,
     reach_cube,
     release_over_cup,
@@ -148,6 +149,8 @@ class OmxRLRewardsCfg:
     reach_fine = RewTerm(func=reach_cube, weight=2.0, params={"std": 0.05})
     # 성공하면 에피소드가 끝나므로, 성공 보상이 "계속 들고 있을 때 앞으로 받을 형성 보상 합"보다 훨씬 커야 한다.
     # (gamma 0.98 -> 유효 지평 약 50 스텝. 형성 보상 합 13/스텝 x 50 = 650 < 성공 1000)
+    # 그리퍼가 아래를 향하도록 (수평 0 ~ 수직 아래 1). 성공 보상(1000) 에 비해 아주 작게 둔다.
+    wrist_down = RewTerm(func=ee_pointing_down, weight=8.0)
     lift = RewTerm(func=cube_lifted, weight=4.0, params={"z_min": LIFT_Z})
     carry = RewTerm(func=carry_to_cup, weight=6.0, params={"std": 0.1, "z_min": LIFT_Z, "cup_xy": CUP_POS})
     carry_fine = RewTerm(func=carry_to_cup, weight=3.0, params={"std": 0.03, "z_min": LIFT_Z, "cup_xy": CUP_POS})

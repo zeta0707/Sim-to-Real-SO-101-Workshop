@@ -27,6 +27,7 @@ parser.add_argument(
 parser.add_argument("--release_speed", type=float, default=100.0, help="--auto_release: 이 속도(m/s) 미만일 때만 발동 (기본값은 사실상 비활성: 큐브가 떨려서 속도가 항상 0.3~0.4)")
 parser.add_argument("--release_tol", type=float, default=0.03, help="--auto_release: 큐브가 컵 중심 xy 에서 이 거리(m) 안이면 컵 위로 본다")
 parser.add_argument("--release_dwell", type=int, default=15, help="--auto_release: 멈춘 상태를 유지해야 하는 스텝 수 (30 Hz 기준 15 = 0.5 s)")
+parser.add_argument("--pose", action="store_true", help="env 0 의 ee 위치와, ee 프레임 x/y/z 축이 월드 위(+z)를 향하는 정도를 10 스텝마다 출력 (-1 이면 정확히 아래). 손목 자세 확인용")
 parser.add_argument("--probe", action="store_true", help="env 0 의 그리퍼 각도/큐브 높이/컵까지 거리를 10 스텝마다 출력 (보상 임계값 확인용)")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -41,6 +42,7 @@ import torch
 from rsl_rl.runners import OnPolicyRunner
 
 from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper
+from isaaclab.utils.math import quat_apply
 
 from sim_to_real_so101.assets.omx import OMX_ARM_JOINTS
 from sim_to_real_so101.tasks.omx_cube_to_cup_env_cfg import CUP_POS
@@ -123,6 +125,17 @@ def main():
                     f"cube_z={float(pos[2]):.3f} cup_dist_xy={float(d):.3f} "
                     f"finger_gap={gap:.3f} cube_to_finger_mid={c_mid:.3f} "
                     f"speed={float(speed[0]):.3f} dwell={int(dwell[0])} released={bool(released[0])} done={bool(dones[0])}"
+                )
+            if args_cli.pose and step % 10 == 0:
+                ee = env.unwrapped.scene["ee_frame"]
+                q = ee.data.target_quat_w[0, 0:1]
+                ep = (ee.data.target_pos_w[0, 0] - origins[0]).tolist()
+                ax = torch.eye(3, device=dev)
+                zs = quat_apply(q.repeat(3, 1), ax)[:, 2].tolist()
+                print(
+                    f"[pose] step={step:4d} ee=({ep[0]:.3f},{ep[1]:.3f},{ep[2]:.3f}) "
+                    f"axis_z: x={zs[0]:+.2f} y={zs[1]:+.2f} z={zs[2]:+.2f}  gripper={float(robot.data.joint_pos[0, grip_id]):.2f} "
+                    f"cube_z={float((cube.data.root_pos_w[0] - origins[0])[2]):.3f}"
                 )
             if dones.any():
                 succ = tm.get_term("success")

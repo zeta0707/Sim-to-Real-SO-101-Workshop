@@ -26,7 +26,7 @@ You can also use this repo as a basis for trying out your own tasks.
 | `-Eval` 환경의 성공 판정(`cube_in_cup`) | 확인 |
 | ACT 학습 (20 에피소드, 30k 스텝) / 시뮬레이터 평가 | 확인 (평가 3/3 성공, 표본이 작음) |
 | GR00T 학습 / `omx_lerobot_eval.py` 평가 | 미확인 (파인튜닝에 VRAM 40 GB 이상 권장) |
-| 강화학습 환경 `Lerobot-Omx-Cube-To-Cup-RL` (PPO) | 학습/평가 완료: 정책 단독 성공률 99/100 (시뮬레이션). 아래 "강화학습" 참고 |
+| 강화학습 환경 `Lerobot-Omx-Cube-To-Cup-RL` (PPO) | 학습/평가 완료: 정책 단독 성공률 100/100 (시뮬레이션). 아래 "강화학습" 참고 |
 | 실물 OMX-F 팔로워 배포 | 미구현 (follower 모드는 GR00T 원격 정책 경로만 지원) |
 | `Vials-To-Rack` 환경 | 환경은 뜨지만 자동 파지(진단 스크립트)는 불안정. 바이알 3D 출력 후 재조정 예정 |
 
@@ -172,7 +172,7 @@ Cube-To-Cup 의 장면 구성:
 |---|---|
 | 환경 | `Lerobot-Omx-Cube-To-Cup-RL` (512 env, 정책 30 Hz, 에피소드 12 s) |
 | 액션 | 6차원 델타 관절 목표 (`[-1,1]` -> joint1~5 는 스텝당 최대 0.05 rad, gripper 0.08 rad). `mdp/omx_rl.py` |
-| 보상 | 도달(reach, reach_fine) + 들기 + 들린 채 컵 위로 운반(carry, carry_fine) + 컵 위에서 그리퍼 열기(release) + 성공(1000) - 낙하 - 액션 변화/관절 속도 |
+| 보상 | 도달(reach, reach_fine) + 들기 + 들린 채 컵 위로 운반(carry, carry_fine) + 컵 위에서 그리퍼 열기(release) + 그리퍼를 아래로 향하게(wrist_down, 가중치 8) + 성공(1000) - 낙하 - 액션 변화/관절 속도 |
 | 종료 | 성공(`cube_in_cup`, 평가와 같은 판정) / 큐브 낙하·이탈 / 시간 초과 |
 | 알고리즘 | RSL-RL PPO, 설정은 `tasks/omx_rl_agent_cfg.py` |
 | 화면 | 바닥은 보기용 연녹색 판(충돌 없음), 돔 라이트 |
@@ -185,6 +185,7 @@ Cube-To-Cup 의 장면 구성:
 | 위 정책 + 놓기 규칙(`--auto_release`) | 99/100 |
 | 놓기를 정책에 증류한 `distill_release.pt` 정책만 | 96/100 |
 | 증류 후 PPO 로 이어 학습(r8, 300 iteration) 정책만 | 99/100 |
+| r8 에 손목 자세 보상(wrist_down)을 더해 이어 학습(r10, 500 iteration) 정책만 | 100/100 |
 
 PPO 가 놓기를 못 배운 이유는 정책 평균 출력이 "닫기" 쪽으로 굳어 가우시안 탐색으로는 열기 동작이 거의 나오지 않아서다.
 그래서 규칙(컵 xy 3 cm 안, 높이 0.075 m 이상에서 15 스텝 머물면 열기)을 정답으로 삼아 actor 를 지도학습(DAgger 방식)으로 고쳤다.
@@ -207,7 +208,11 @@ python source/sim_to_real_so101/scripts/omx_rl_play.py --headless --num_envs 16 
 #    --auto_release : 놓기 규칙을 얹어서 평가   --probe : env 0 의 상태를 10 스텝마다 출력   --force_open_at N : N 스텝부터 그리퍼 강제 열기
 ```
 
-다음 단계 후보: 손목이 아래를 향하는 자세 보상, 실제 OMX-F 이식.
+손목 자세: `omx_rl_play.py --pose` 로 그리퍼가 가리키는 방향(ee 프레임 x 축)이 수평에서 아래로 몇 도 기울었는지 잰다.
+r8 은 집을 때 46° / 컵 위 18° 였고, r10 은 집을 때 45° / 들 때 49° / 컵 위 40° 이다 (수직 아래 = 90°).
+가중치를 더 올리면(20) 더 숙일 수 있는지는 시험하지 않았다.
+
+다음 단계 후보: 실제 OMX-F 이식 (큐브/컵 위치를 얻는 인식 단계가 먼저 필요하다).
 
 ### 문제 해결
 
