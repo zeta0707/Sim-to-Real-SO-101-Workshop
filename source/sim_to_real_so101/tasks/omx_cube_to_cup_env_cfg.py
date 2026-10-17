@@ -107,4 +107,5 @@ class OmxCubeToCupEvalEnvCfg(OmxCubeToCupEnvCfg):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.episode_length_s = 20.0
+        # 시연 20개의 평균 길이가 약 17.4 s(최대 28 s)라서 20 s 는 정책에게 빠듯하다.
+        self.episode_length_s = 30.0
