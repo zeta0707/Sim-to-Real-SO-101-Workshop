@@ -26,7 +26,7 @@ You can also use this repo as a basis for trying out your own tasks.
 | `-Eval` 환경의 성공 판정(`cube_in_cup`) | 확인 |
 | ACT 학습 (20 에피소드, 30k 스텝) / 시뮬레이터 평가 | 확인 (평가 3/3 성공, 표본이 작음) |
 | GR00T 학습 / `omx_lerobot_eval.py` 평가 | 미확인 (파인튜닝에 VRAM 40 GB 이상 권장) |
-| 강화학습 환경 `Lerobot-Omx-Cube-To-Cup-RL` (PPO) | 학습/평가 완료: 정책 단독 성공률 96/100 (시뮬레이션). 아래 "강화학습" 참고 |
+| 강화학습 환경 `Lerobot-Omx-Cube-To-Cup-RL` (PPO) | 학습/평가 완료: 정책 단독 성공률 99/100 (시뮬레이션). 아래 "강화학습" 참고 |
 | 실물 OMX-F 팔로워 배포 | 미구현 (follower 모드는 GR00T 원격 정책 경로만 지원) |
 | `Vials-To-Rack` 환경 | 환경은 뜨지만 자동 파지(진단 스크립트)는 불안정. 바이알 3D 출력 후 재조정 예정 |
 
@@ -184,6 +184,7 @@ Cube-To-Cup 의 장면 구성:
 | PPO 학습 결과 (r6, model_2100) 정책만 | 5/100 -- 큐브를 컵 위까지 옮기지만 그리퍼를 열지 않고 떨기만 한다 |
 | 위 정책 + 놓기 규칙(`--auto_release`) | 99/100 |
 | 놓기를 정책에 증류한 `distill_release.pt` 정책만 | 96/100 |
+| 증류 후 PPO 로 이어 학습(r8, 300 iteration) 정책만 | 99/100 |
 
 PPO 가 놓기를 못 배운 이유는 정책 평균 출력이 "닫기" 쪽으로 굳어 가우시안 탐색으로는 열기 동작이 거의 나오지 않아서다.
 그래서 규칙(컵 xy 3 cm 안, 높이 0.075 m 이상에서 15 스텝 머물면 열기)을 정답으로 삼아 actor 를 지도학습(DAgger 방식)으로 고쳤다.
@@ -206,7 +207,7 @@ python source/sim_to_real_so101/scripts/omx_rl_play.py --headless --num_envs 16 
 #    --auto_release : 놓기 규칙을 얹어서 평가   --probe : env 0 의 상태를 10 스텝마다 출력   --force_open_at N : N 스텝부터 그리퍼 강제 열기
 ```
 
-다음 단계 후보: PPO 로 증류한 정책을 더 다듬기, 손목이 아래를 향하는 자세 보상, 실제 OMX-F 이식.
+다음 단계 후보: 손목이 아래를 향하는 자세 보상, 실제 OMX-F 이식.
 
 ### 문제 해결
 
