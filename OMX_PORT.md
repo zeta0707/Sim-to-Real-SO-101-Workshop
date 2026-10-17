@@ -23,6 +23,7 @@ SO-101 워크숍의 Isaac Lab 환경을 ROBOTIS OMX-F(+OMX-L 리더)로 옮긴 *
 | `scripts/omx_lerobot_eval.py` | 원격 GR00T 서버로 평가 | `scripts/lerobot_eval.py` |
 | `scripts/omx_reach_agent.py` | 리더 없이 평면 IK 로 바이알 파지/들어올리기 점검 (진단용, 바이알 전용) | - |
 | `scripts/omx_leader_probe.py` | OMX-L 리더 읽기 전용 점검 + 그리퍼 열림/닫힘 normalized 값 측정 | - |
+| `utils/omx_local_policy.py` | 로컬 LeRobot 정책(ACT 등) 체크포인트를 sim 평가에 연결 (`omx_lerobot_eval.py --policy_type local`). 미검증 | - |
 | `utils/omx_recorder.py` | `LeRobotRecorder` 의 서브클래스: 영상 버퍼를 GPU 가 아니라 CPU 에 쌓는다 (8 GB VRAM 에서 S 키로 멈추던 문제 수정) | `utils/lerobot_recorder.py` |
 
 등록되는 환경: `Lerobot-Omx-Teleop-Base`, `-Task`, `-Vials-To-Rack`, `-Vials-To-Rack-DR`, `-Vials-To-Rack-Eval`, `-Vials-To-Rack-DR-Eval`, `-Cube-To-Cup`, `-Cube-To-Cup-Eval`
@@ -97,7 +98,7 @@ python source/sim_to_real_so101/scripts/omx_lerobot_eval.py \
   640x480x3 기준 카메라당 3.3 GB 라서 카메라 2 대면 6.6 GB. Isaac Sim 이 이미 약 5 GB 를 쓰는 8 GB 노트북에서는 앱이 응답 없음이 된다.
   `utils/omx_recorder.py` 는 프레임을 CPU 에 쌓아서(GPU 사용량 증가 없음) 해결했다.
   이후 3 개 에피소드(1236 프레임)가 저장되었고 LeRobotDataset 으로 다시 읽어 영상 디코딩까지 확인했다.
-- 키: `S` 시작/종료(저장), `R` 리셋(녹화 중이면 저장), `C` 취소(버림, 미검증).
+- 키: `S` 시작/종료(저장), `R` 리셋(녹화 중이면 저장), `C` 취소(버림, 로그로 확인).
 - 영상은 AV1 mp4 라서 VLC 에서 열리지 않을 수 있다. 데이터는 정상이다.
 
 ## 아직 안 된 것

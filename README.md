@@ -1,16 +1,20 @@
-# Train an OMX Robot From Sim-to-Real With NVIDIA Isaac
+# Train an SO-101 Robot From Sim-to-Real With NVIDIA Isaac
 
-![OMX Vial to Rack Task](images/omx_banner.png)
+![SO-101 Vial to Rack Task](images/so101_banner.png)
 
-Welcome to this workshop on sim-to-real transfer for the OMX robot!
+Welcome to this workshop on sim-to-real transfer for the SO-101 robot!
 
+This repository contains the assets and code to accompany this [learning content](https://docs.nvidia.com/learning/physical-ai/sim-to-real-so-101/latest/index.html).
+
+The rest of this README will help you setup the environment and ensure everything is installed correctly.
+
+You can also use this repo as a basis for trying out your own tasks.
 
 ## ROBOTIS OMX-F 포팅 (이 포크의 추가 내용)
 
-이 포크는 SO-101 워크숍 환경을 **ROBOTIS OMX-F 팔로워 + OMX-L 리더**로 옮긴 것이다.   
-기존 SO-101 파일은 `source/sim_to_real_so101/tasks/__init__.py` 끝에 `from . import omx_register` 한 줄을 추가한 것 외에는 수정하지 않았고  
-OMX 관련 파일은 모두 `omx_` 접두사로 추가했다. 파일 목록, 데이터 규약, 시뮬레이션에서 확인된 사항은 [OMX_PORT.md](OMX_PORT.md)에 있다.  
-로봇 에셋(`omx_f`)은 가짜연구소(Pseudo Lab)의 [NVIDIA-RFM-Lab](https://github.com/Pseudo-Lab/NVIDIA-RFM-Lab)(MIT)에서 가져왔다.  
+이 포크는 SO-101 워크숍 환경을 **ROBOTIS OMX-F 팔로워 + OMX-L 리더**로 옮긴 것이다. 기존 SO-101 파일은 `source/sim_to_real_so101/tasks/__init__.py` 끝에 `from . import omx_register` 한 줄을 추가한 것 외에는 수정하지 않았고, OMX 관련 파일은 모두 `omx_` 접두사로 추가했다. 파일 목록, 데이터 규약, 시뮬레이션에서 확인된 사항은 [OMX_PORT.md](OMX_PORT.md)에 있다.
+
+로봇 에셋(`omx_f`)은 가짜연구소(Pseudo Lab)의 [NVIDIA-RFM-Lab](https://github.com/Pseudo-Lab/NVIDIA-RFM-Lab)(MIT)에서 가져왔다. 자세한 출처는 `THIRD_PARTY_NOTICES`를 본다.
 
 ### 동작 확인 상태
 
@@ -92,7 +96,7 @@ python source/sim_to_real_so101/scripts/omx_lerobot_agent.py \
 ```
 
 - `--repo_id --repo_root --task_name` 을 모두 주면 녹화 모드가 되고, 하나라도 빼면 녹화 없이 텔레옵만 한다.
-- 키: `S` 녹화 시작/종료(종료하면 에피소드가 **저장**된다), `R` 월드 리셋(녹화 중이었다면 **저장하고** 멈춘다), `C` 녹화 중인 에피소드를 **취소**(저장하지 않고 버림). 실패한 시도는 `C` 로 버린다(`C` 는 아직 실제로 눌러 확인하지 않았다).
+- 키: `S` 녹화 시작/종료(종료하면 에피소드가 **저장**된다), `R` 월드 리셋(녹화 중이었다면 **저장하고** 멈춘다), `C` 녹화 중인 에피소드를 **취소**(저장하지 않고 버림). 실패한 시도는 `C` 로 버린다(`Cancelled recording.` 로그가 나온다).
 - 저장은 별도 스레드에서 처리되며 `Episode N saved.` 가 나오면 끝난 것이다.
 - `--repo_root` 폴더가 이미 있으면 기존 데이터셋을 열어 에피소드를 이어서 추가한다. 폴더만 있고 내용이 불완전하면 `folder already exists` 에러가 나므로 지우고 다시 시작한다.
 - 녹화는 영상(ego, external_D455) 프레임을 CPU 메모리에 쌓는다(`utils/omx_recorder.py`). 1분 에피소드면 대략 3 GB 의 RAM 을 쓰므로 에피소드는 길지 않게 한다.
@@ -113,6 +117,33 @@ EOF
 
 영상은 AV1(mp4)이다. VLC 등 일부 플레이어는 열지 못할 수 있으며, `ffplay` 나 `mpv` 로는 열린다.
 
+### 학습과 평가 (ACT, 로컬)
+
+녹화한 LeRobotDataset(v3)을 그대로 쓸 수 있고, 변환이 필요 없다. 학습 중에는 GPU 메모리 때문에 Isaac Sim 을 닫는다 (8 GB 기준).
+
+```bash
+lerobot-train \
+  --dataset.repo_id=local/omx_cube_to_cup --dataset.root=datasets/omx_cube_to_cup \
+  --policy.type=act --policy.device=cuda --policy.push_to_hub=false \
+  --output_dir=outputs/train/omx_cube_act --job_name=omx_cube_act \
+  --batch_size=8 --steps=30000 --save_freq=5000 --log_freq=200 --wandb.enable=false
+```
+
+RTX 5060 Laptop 8 GB 에서 스텝당 약 0.28~0.32 초였다 (30,000 스텝 약 2시간 40분, 에피소드 20개 / 10,445 프레임). loss 는 25.2 → 0.071.
+
+시뮬레이션 평가 (`utils/omx_local_policy.py`, **아직 실행해 보지 못했다**):
+
+```bash
+python source/sim_to_real_so101/scripts/omx_lerobot_eval.py \
+  --task Lerobot-Omx-Teleop-Cube-To-Cup-Eval --policy_type local \
+  --checkpoint outputs/train/omx_cube_act/checkpoints/030000/pretrained_model \
+  --lang_instruction "Pick up the cube and place it in the cup" \
+  --gripper_closed_norm 51.40 --gripper_open_norm 66.77 --num_episodes 10
+```
+
+`--n_action_steps` 로 한 번 추론한 chunk 중 실행할 스텝 수를 줄일 수 있다 (ACT 기본 100 스텝 = 약 3.3 초).
+성공 판정은 큐브가 컵 안에 들어간 순간이며, 그리퍼가 놓았는지는 보지 않는다.
+
 ### OMX 환경(Task)
 
 | 환경 | 설명 |
@@ -120,7 +151,7 @@ EOF
 | `Lerobot-Omx-Teleop-Base` | 디버그: 로봇만 (카메라 없음) |
 | `Lerobot-Omx-Teleop-Task` | 디버그: 라이트박스, 매트, 카메라 |
 | `Lerobot-Omx-Teleop-Cube-To-Cup` | **큐브 하나를 집어 컵에 넣기.** 바이알 없이 시작하는 단순 태스크. 큐브 위치는 reset 마다 ±3 cm 랜덤 |
-| `Lerobot-Omx-Teleop-Cube-To-Cup-Eval` | 위와 같고 성공(`cube_in_cup`) 시 종료, 제한 시간 20 초 |
+| `Lerobot-Omx-Teleop-Cube-To-Cup-Eval` | 위와 같고 성공(`cube_in_cup`) 시 종료, 제한 시간 30 초 |
 | `Lerobot-Omx-Teleop-Vials-To-Rack` | 바이알을 집어 랙에 넣기 (원본 워크숍 태스크의 OMX 판) |
 | `Lerobot-Omx-Teleop-Vials-To-Rack-DR` | 위 + 도메인 랜덤화 |
 | `Lerobot-Omx-Teleop-Vials-To-Rack-Eval` / `-DR-Eval` | 평가용 |
@@ -140,19 +171,6 @@ Cube-To-Cup 의 장면 구성:
 | Ctrl-C 로 안 꺼짐 | 다른 터미널에서 `docker kill teleop` |
 | `Failed to initialize dataset. folder already exists` | `datasets/...` 폴더가 불완전하게 남은 것. 비어 있으면 지우고 다시 실행 |
 | 두 `sim_to_real_so101` 패키지 충돌 | NVIDIA-RFM-Lab 의 같은 이름 패키지를 PYTHONPATH 에 올리지 않는다 |
-
-# Fork한 원본 README
-# Train an SO-101 Robot From Sim-to-Real With NVIDIA Isaac
-
-![SO-101 Vial to Rack Task](images/so101_banner.png)
-
-Welcome to this workshop on sim-to-real transfer for the SO-101 robot!
-
-This repository contains the assets and code to accompany this [learning content](https://docs.nvidia.com/learning/physical-ai/sim-to-real-so-101/latest/index.html).
-
-The rest of this README will help you setup the environment and ensure everything is installed correctly.
-
-You can also use this repo as a basis for trying out your own tasks.
 
 ## Requirements
 

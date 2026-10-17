@@ -1,12 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # OMX-F 평가 클라이언트 (워크숍 scripts/lerobot_eval.py 의 OMX 대응 신규 파일).
-# Isaac Lab 환경(Lerobot-Omx-Teleop-*-Eval)을 돌리고, 원격 GR00T 추론 서버에 관측을 보내 액션을 받아 실행한다.
+# Isaac Lab 환경(Lerobot-Omx-Teleop-*-Eval)을 돌리고 정책이 낸 액션을 실행한다. 정책은 두 가지 중 하나:
+#   --policy_type groot (기본): 원격 GR00T 추론 서버에 관측을 보내 액션을 받는다.
+#   --policy_type local        : 로컬 LeRobot 체크포인트(ACT 등)를 직접 로드해서 쓴다.
 #
-# 예)
+# 예) GR00T
 #   python source/sim_to_real_so101/scripts/omx_lerobot_eval.py \
 #       --task Lerobot-Omx-Teleop-Vials-To-Rack-Eval --policy_host localhost --policy_port 5555 \
 #       --rename_map '{"ego": "front", "external_D455": "top"}' --num_episodes 10
+# 예) 로컬 ACT
+#   python source/sim_to_real_so101/scripts/omx_lerobot_eval.py \
+#       --task Lerobot-Omx-Teleop-Cube-To-Cup-Eval --policy_type local \
+#       --checkpoint outputs/train/omx_cube_act/checkpoints/030000/pretrained_model \
+#       --gripper_closed_norm 51.40 --gripper_open_norm 66.77 --num_episodes 10
 #
 # 주의: --zero_json / --gripper_*_norm 은 데이터를 녹화(omx_lerobot_agent.py)할 때와 같은 값을 써야 한다.
 #       (정책이 내놓는 정규화 값 -> sim 각도 변환이 녹화 때의 역변환과 정확히 대응해야 하기 때문)
@@ -25,6 +32,12 @@ parser.add_argument("--task", type=str, default=None)
 parser.add_argument("--seed", type=int, default=1984)
 parser.add_argument("--num_episodes", type=int, default=10)
 parser.add_argument("--rename_map", type=str, default=None, help='sim 카메라 이름 -> 정책 카메라 키 JSON')
+parser.add_argument("--policy_type", type=str, default="groot", choices=["groot", "local"])
+parser.add_argument("--checkpoint", type=str, default=None, help="--policy_type local: pretrained_model 폴더 경로")
+parser.add_argument(
+    "--n_action_steps", type=int, default=None,
+    help="--policy_type local(ACT): 한 번 추론한 chunk 중 실행할 스텝 수. 기본은 체크포인트 값(보통 100)",
+)
 parser.add_argument("--policy_host", type=str, default="localhost")
 parser.add_argument("--policy_port", type=int, default=5555)
 parser.add_argument("--action_horizon", type=int, default=16)
@@ -54,6 +67,7 @@ import sim_to_real_so101.tasks  # noqa: F401
 from sim_to_real_so101.utils.keyboard import KeyboardControl
 from sim_to_real_so101.utils.lerobot_interface import GR00TRemotePolicy
 from sim_to_real_so101.utils.omx_interface import OmxInterface
+from sim_to_real_so101.utils.omx_local_policy import OmxLocalPolicy
 
 
 def main():
@@ -104,13 +118,24 @@ def main():
     )
     robot_iface.init_device(visualize=args_cli.rerun)
 
-    policy = GR00TRemotePolicy(
-        robot_iface=robot_iface,
-        host=args_cli.policy_host,
-        port=args_cli.policy_port,
-        action_horizon=args_cli.action_horizon,
-        lang_instruction=args_cli.lang_instruction,
-    )
+    if args_cli.policy_type == "local":
+        if not args_cli.checkpoint:
+            raise ValueError("--policy_type local 에는 --checkpoint (pretrained_model 폴더) 가 필요하다")
+        policy = OmxLocalPolicy(
+            robot_iface=robot_iface,
+            checkpoint=args_cli.checkpoint,
+            task=args_cli.lang_instruction,
+            device=str(env.unwrapped.device),
+            n_action_steps=args_cli.n_action_steps,
+        )
+    else:
+        policy = GR00TRemotePolicy(
+            robot_iface=robot_iface,
+            host=args_cli.policy_host,
+            port=args_cli.policy_port,
+            action_horizon=args_cli.action_horizon,
+            lang_instruction=args_cli.lang_instruction,
+        )
     policy.connect()
 
     obs, _ = env.reset()
