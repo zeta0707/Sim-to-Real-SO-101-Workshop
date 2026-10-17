@@ -27,6 +27,7 @@ parser.add_argument(
 parser.add_argument("--release_speed", type=float, default=100.0, help="--auto_release: 이 속도(m/s) 미만일 때만 발동 (기본값은 사실상 비활성: 큐브가 떨려서 속도가 항상 0.3~0.4)")
 parser.add_argument("--release_tol", type=float, default=0.03, help="--auto_release: 큐브가 컵 중심 xy 에서 이 거리(m) 안이면 컵 위로 본다")
 parser.add_argument("--release_dwell", type=int, default=15, help="--auto_release: 멈춘 상태를 유지해야 하는 스텝 수 (30 Hz 기준 15 = 0.5 s)")
+parser.add_argument("--dump_ref", type=str, default=None, help="정책 입력(관측 33)과 출력(행동 6)을 .npz 로 저장한다. omx_rl_export.py 의 검증용 기준값 (최대 400 스텝)")
 parser.add_argument("--pose", action="store_true", help="env 0 의 ee 위치와, ee 프레임 x/y/z 축이 월드 위(+z)를 향하는 정도를 10 스텝마다 출력 (-1 이면 정확히 아래). 손목 자세 확인용")
 parser.add_argument("--probe", action="store_true", help="env 0 의 그리퍼 각도/큐브 높이/컵까지 거리를 10 스텝마다 출력 (보상 임계값 확인용)")
 AppLauncher.add_app_launcher_args(parser)
@@ -38,6 +39,7 @@ simulation_app = app_launcher.app
 """Rest everything follows."""
 
 import gymnasium as gym
+import numpy as np
 import torch
 from rsl_rl.runners import OnPolicyRunner
 
@@ -77,6 +79,7 @@ def main():
     cube = env.unwrapped.scene["cube"]
     origins = env.unwrapped.scene.env_origins
     step = 0
+    ref_obs, ref_act = [], []
     release_events = 0
     print(
         f"[play] auto_release={args_cli.auto_release} release_dwell={args_cli.release_dwell} "
@@ -92,6 +95,10 @@ def main():
     with torch.inference_mode():
         while simulation_app.is_running() and episodes < args_cli.num_episodes:
             actions = policy(obs)
+            if args_cli.dump_ref is not None and len(ref_obs) < 400:
+                o_t = obs["policy"] if hasattr(obs, "keys") and "policy" in obs.keys() else obs
+                ref_obs.append(o_t.detach().cpu().numpy().copy())
+                ref_act.append(actions.detach().cpu().numpy().copy())
             if args_cli.force_open_at is not None and step >= args_cli.force_open_at:
                 actions[:, 5] = 1.0
             cpos = cube.data.root_pos_w - origins
@@ -144,6 +151,14 @@ def main():
                     episodes += 1
                     successes += int(succ[i])
                     lost += int(out[i])
+    if args_cli.dump_ref is not None:
+        import os
+
+        os.makedirs(os.path.dirname(os.path.abspath(args_cli.dump_ref)), exist_ok=True)
+        o = np.concatenate(ref_obs).astype(np.float64)
+        a = np.concatenate(ref_act).astype(np.float64)
+        np.savez(args_cli.dump_ref, obs=o, act=a)
+        print(f"[play] 기준값 저장: {args_cli.dump_ref}  (관측 {o.shape}, 행동 {a.shape})")
     print(f"[play] checkpoint: {args_cli.checkpoint}")
     print(f"[play] 규칙(auto_release)이 발동한 횟수: {release_events}")
     print(f"[play] Success Rate: {successes}/{episodes} ({100.0 * successes / max(episodes, 1):.1f}%)  cube_lost={lost}")
