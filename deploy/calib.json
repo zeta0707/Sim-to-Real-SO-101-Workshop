@@ -1,0 +1,21 @@
+{
+  "units": "degrees",
+  "joint_offset_deg": [
+    1.09,
+    -1.24,
+    5.23,
+    -5.09,
+    -3.85
+  ],
+  "gripper_open_pos": 71.21,
+  "gripper_closed_pos": 54.38,
+  "gripper_closed_cmd_pos": 51.52,
+  "park_q": [
+    0.0655,
+    -1.9723,
+    1.6241,
+    1.4675,
+    0.0572,
+    0.2485
+  ]
+}

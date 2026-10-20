@@ -48,3 +48,27 @@ python deploy/omx_real_run.py --io lerobot --port /dev/ttyUSB0 --probe
 - 관절 속도는 유한 차분(저역통과)으로 추정한다. 시뮬레이션의 속도와 분포가 다르다.
 - 모터 PD/지연/마찰이 시뮬레이션과 다르다. `--log` 기록을 시뮬레이션 재생과 비교해서 어긋남을 본다.
 - 이 기준은 시뮬레이션에서 큐브가 시작 위치에 정확히 있을 때 100% 다. 실제 오차가 ±3 cm 를 넘으면 실패할 수 있다.
+
+## 실제 로봇 검증된 실행 (Cube-To-Cup, OMX-F)
+
+고정 좌표: 큐브 (0.232, -0.050), 컵 중심 (0.156, 0.098), 컵 높이 7 cm / 내측 반지름 4 cm. 큐브와 컵은 같은 받침대(약 1.7 cm) 위에 둔다.
+손목 롤은 고정(`--lock_roll 0`)한다. 정책이 롤을 계속 돌리기 때문.
+
+```
+python deploy/omx_real_run.py --io lerobot --port /dev/ttyACM0 --calib deploy/calib.json \
+  --send --goto_home --home_secs 4 --action_scale 0.3 --grip_gain 1.5 \
+  --cube_xy 0.232 -0.050 --cup_xy 0.179 0.110 --rule_cup_xy 0.156 0.100 \
+  --lock_roll 0 --carry_z_min 0.165 --auto_release --release_tol 0.02 \
+  --park --max_steps 400 --log run.npz
+```
+
+결과: action_scale 0.15 / 0.25 / 0.3 에서 각각 5/5 (큐브가 컵 안, 컵 충돌 없음).
+
+### 옵션 요약
+- `--calibrate`: 손으로 관절 오프셋·그리퍼 열림/닫힘 값을 `calib.json` 에 저장. `--set_park`: 주차 자세 저장.
+- `--grasp_dwell N`: 쥔 직후 N 스텝 동안 팔을 멈추고 그리퍼만 조인다 (들다 떨어짐 방지).
+- `--carry_z_min`: 운반 중 팔끝 최소 높이 (컵 림 위로 넘기기, 0.165 권장).
+- `--auto_release`: 컵 중심 `--release_tol` 안에 `--release_dwell` 스텝 머물거나, 컵 `--stall_radius` 안에서 `--stall_steps` 동안 정지하면 그리퍼를 열고 팔은 멈춘다.
+- `--rule_cup_xy`: 놓기 규칙이 쓰는 실제 컵 중심. 정책이 보는 `--cup_xy` 와 다르게 줄 수 있다.
+- `--park`: 놓은 뒤 그리퍼를 더 열지 않고 `--retreat_z`(0.24)까지 수직 후퇴 → 저장된 주차 자세. 놓지 못했으면 주차하지 않고 현재 자세를 유지한다.
+- 안전: ee z 하한 0.05, 빈 손/목표 갱신 거부 중단(`--send` 일 때), Ctrl-C 는 토크 유지.
