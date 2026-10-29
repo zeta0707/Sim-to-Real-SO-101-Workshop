@@ -81,7 +81,7 @@ class OmxCubeToCupRLSceneCfg(LerobotOmxBaseSceneCfg):
 
     cup = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Cup",
-        spawn=sim_utils.UsdFileCfg(usd_path=f"{assets_path}/usd/cup.usda"),
+        spawn=sim_utils.UsdFileCfg(usd_path=f"{assets_path}/usd/cup_round.usda"),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(CUP_POS[0], CUP_POS[1], MAT_TOP_Z)),
     )
 
@@ -134,7 +134,7 @@ class OmxRLEventCfg(OmxEventCfg):
         func=isaac_mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-0.03, 0.03), "y": (-0.03, 0.03), "yaw": (-0.5, 0.5)},
+            "pose_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "yaw": (-0.8, 0.8)},
             "velocity_range": {},
             "asset_cfg": SceneEntityCfg("cube"),
         },
@@ -187,6 +187,7 @@ class OmxRLTerminationsCfg:
             "cube_cfg": SceneEntityCfg("cube"),
             "cup_xy": CUP_POS,
             "inner_half": 0.035,
+            "inner_radius": 0.032,  # 원형 컵: 중심 거리 < 3.2 cm (컵 안쪽 반지름 4 cm - 큐브 반대각선 여유)
             "z_min": 0.04,
             "z_max": 0.075,
         },
